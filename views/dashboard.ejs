@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flights</title>
+    <meta charset="utf-8" />
+   
+
+    <style>
+      .mapContainer,
+      #myMap {
+        position: center;
+        width: 600px;
+        height: 400px;
+      }
+
+  
+      .arrivalsTable{
+        position: absolute;
+         left: 50%;
+         top: 30%;
+          transform: translateX(-50%)
+      }
+
+
+      .departuresTable{
+        position: absolute;
+         left: 50%;
+         top: 30%;
+          transform: translateX(-50%)
+      }
+
+      .btnArrivals{
+        position: absolute;
+         left: 50%;
+         top: 10%;
+          transform: translateX(-50%)
+
+      }
+
+
+      
+      .btnDepartures{
+        position: absolute;
+         left: 40%;
+         top: 10%;
+          transform: translateX(-50%)
+
+      }
+
+      
+      .btnWeather{
+        position: absolute;
+         left: 60%;
+         top: 10%;
+          transform: translateX(-50%)
+
+      }
+    </style>
+  </head>
+
+
+
+  <body>
+    <div class="mapContainer">
+      <div style="text-align: center; margin: 10px auto">
+        <div
+          id="myMap"
+          style="
+          
+            margin-left: 250px;
+            margin-top: 100px;
+            position: fixed;
+            width: 800px;
+            height: 600px;
+            border: 2px solid red;
+          "
+        ></div>
+
+        <div>
+
+
+    
+        </div>
+      </div>
+    </div>
+
+    <div class="tables">
+
+
+      <table id="arrivalsTable" style="visibility: hidden;" name="arrivalsTable" class="arrivalsTable"></table>
+      <table id="departuresTable" style="visibility: hidden;" name="departuresTable" class="departuresTable"></table>
+  
+    </div>
+
+    <div class="buttons">
+
+
+    
+
+      <button id="arrivalsBtn" type="submit" name="formBtn" class="btnArrivals" onclick="showArrivals">
+        Arrivals :
+      </button>
+      <button id="departuresBtn" type="submit" name="formBtn" class="btnDepartures" onclick="showDepartures">
+        Departures :
+      </button>
+     
+      <button id="weathersBtn" type="submit" name="formBtn" class="btnWeather">
+        Weather :
+      </button>
+
+      <button id="backBtn"style="visibility: hidden;" type="submit" name="formBtn" class="btnBack">
+        Back :
+      </button>
+     
+     
+
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+     var s = io();
+     var arrivalList = []
+     var departureList = [];
+
+ 
+     var btnBack = document.getElementById("backBtn");
+     var t = document.getElementById("arrivalsTable");
+     var mapC = document.getElementById("myMap");
+     var t2 = document.getElementById("departuresTable");
+     btnBack.onclick =()=>{
+        t.style.visibility = "hidden"
+        t2.style.visibility = "hidden"
+        mapC.style.visibility = "visible"
+        btnBack.style.visibility = "hidden"
+     }
+
+
+     s.emit('message', "Waiting for weather events...");
+
+     s.emit('messageArr', "Waiting for arrivals events...");
+
+     s.emit('messageDep', "Waiting for departures events...");
+      
+   
+    // socket.on('connection')
+ 
+
+    s.on('message', function(msg) {
+      var btn = document.getElementById("weathersBtn");
+   btn.textContent =`Weather : ${msg}`;
+  });
+  s.on('messageArr', function(arrivalFlight) {
+   var btn2 = document.getElementById("arrivalsBtn");
+   btn2.onclick= ()=>{
+  
+    mapC.style.visibility = "hidden"
+    btnBack.style.visibility = "visible"
+    t.style.visibility = "visible"
+    t2.style.visibility = "hidden"
+   
+   }
+  
+  
+   console.log("Came event in arrivals flight client");
+
+   try{
+
+
+    var writeToTableArrival = true
+    if(arrivalList.length>0){
+
+      // if flight exist on list, delete it.
+      let  exsitingFlight = arrivalList.find(f=>f.flight_id === arrivalFlight.flight_id);
+      console.log("Exsiting flight : " + exsitingFlight);
+      if(exsitingFlight!== undefined && exsitingFlight!==null){
+        console.log(`Flight with id ${exsitingFlight.flight_id} is in the arrival list and got updated one so delete the current.`);
+        arrivalList = arrivalList.filter(ele=>{
+            return ele!= exsitingFlight
+          })
+
+
+
+          writeToTableArrival = false;
+
+         
+      }
+
+    }
+
+    console.log(`Inserted to arrival list flight with id ${arrivalFlight.flight_id}`);
+    var currentdate = new Date(); 
+    if((currentdate/1000/60 +15) > (new Date(arrivalFlight.arrival_estimated)/1000/60)){
+      arrivalList.push(arrivalFlight)
+    }
+  
+    btn2.textContent =`Arrivals : ${arrivalList.length}`;
+   
+    if(arrivalFlight.lat !== 'null' && arrivalFlight.lon!=='null'){
+    console.log("Lan and lon not null");
+   
+   var pushpin = new Microsoft.Maps.Pushpin(new Microsoft.Maps.Location(parseFloat(arrivalFlight.lat), parseFloat(arrivalFlight.lon)), null);
+  
+    map.entities.push(pushpin);
+    
+  
+  
+
+ 
+
+    }
+
+
+
+      if(writeToTableArrival){
+          t = document.getElementById("arrivalsTable");
+         var x = document.createElement("tr")
+      var y = document.createElement("td")
+      var label = document.createElement("text")
+      label.textContent = `Flight number :  ${arrivalFlight.flight_id} , Airline : ${arrivalFlight.airline} Source : ${arrivalFlight.source} Destination : ${arrivalFlight.destination} Delay : 0`
+      console.log(label.textContent);
+      y.appendChild(label)
+      x.appendChild(y)
+
+      t.appendChild(x)
+    
+
+      }
+
+   
+
+
+
+   }
+   catch(e){
+    console.log("Failed " + e);
+   }
+
+        
+   
+  });
+
+
+  s.on('messageDep', function(departuresFlight) {
+   var btn = document.getElementById("departuresBtn");
+   //btn.textContent =`Departures : ${departuresList.length}`;
+   btn.onclick= ()=>{
+    console.log("clicked!!");
+   
+    t2.style.visibility = "visible"
+    t.style.visibility = "hidden"
+    mapC.style.visibility = "hidden"
+    btnBack.style.visibility = "visible"
+   }
+
+   console.log("Came event in departures flight client");
+
+   try{
+
+
+    var writeToTableDeparture = true
+      if(departureList.length>0){
+
+// if flight exist on list, delete it.
+let  exsitingFlight = departureList.find(f=>f.flight_id === departuresFlight.flight_id);
+console.log("Exsiting flight : " + exsitingFlight);
+if(exsitingFlight!== undefined && exsitingFlight!==null){
+  console.log(`Flight with id ${exsitingFlight.flight_id} is in the departure list and got updated one so delete the current.`);
+  departureList =  departureList.filter(ele=>{
+      return ele!= exsitingFlight
+    })
+
+
+    writeToTableDeparture = false
+}
+
+
+}
+
+
+
+  console.log(`Inserted to departure list flight with id ${departuresFlight.flight_id}`);
+
+  var currentdate = new Date(); 
+    if((currentdate/1000/60 +15) > (new Date(departuresFlight.departure_estimated)/1000/60)){
+      departureList.push(departuresFlight)
+    }
+
+  departureList.push(departuresFlight)
+  btn.textContent =`Departures : ${departureList.length}`;
+
+
+
+
+
+    if(departuresFlight.lat !== 'null' && departuresFlight.lon!=='null'){
+    console.log("Lan and lon not null");
+ 
+    var pushpin = new Microsoft.Maps.Pushpin(new Microsoft.Maps.Location(parseFloat(departuresFlight.lat), parseFloat(departuresFlight.lon)), null);
+    
+
+   
+    map.entities.push(pushpin);
+    
+   }
+  
+
+
+
+    if( writeToTableDeparture){
+     console.log("SIVANNN");
+       t2 = document.getElementById("departuresTable");
+        var x = document.createElement("tr")
+      var y = document.createElement("td")
+      var label = document.createElement("text")
+      label.textContent = `Flight number :  ${departuresFlight.flight_id} , Airline : ${departuresFlight.airline} Source : ${departuresFlight.destination} Destination : ${departuresFlight.source} Delay : 0`
+      console.log(label.textContent);
+      y.appendChild(label)
+      x.appendChild(y)
+
+      t2.appendChild(x)
+    
+
+      }
+   }
+   catch(e){
+    console.log("Failed " + e);
+   }
+
+        
+   
+  });
+
+
+
+    </script> 
+
+
+ 
+<script type="text/javascript">
+   
+  var map, contextMenu, loc;
+  function GetMap() {
+    var northCarolinaBounds = Microsoft.Maps.LocationRect.fromEdges(
+      35.256689071655273,
+      33.909992218017578,
+      30.954898834228516,
+      34.198226928710938
+    );
+    map = new Microsoft.Maps.Map("#myMap", {
+      showDashboard: false, //Hide the default navigation bar.
+      maxBounds: northCarolinaBounds,
+      bounds: northCarolinaBounds,
+    });
+
+    /// top 35.7
+    // bottom 30.4
+    // left 30
+
+    // right 38.2
+
+  }
+ 
+</script>
+<script
+  type="text/javascript"
+  src="https://www.bing.com/api/maps/mapcontrol?callback=GetMap&key=As4jqrkoyeQcRTOqIBiQgui2O7xH5QO_Xahh37r63HnpJLdPRNq3kqmYwmYnbZJQ"
+  async
+  defer 
+></script>
+  </body>
+ 
+</html>
